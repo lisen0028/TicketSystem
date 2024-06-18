@@ -1,0 +1,27 @@
+ {
+        "idcard": 1234,
+        "address": "湖南",
+        "username": "李思文",
+        "password": "18273",
+        "email": "213987",
+        "phonenumber": "12897398279",
+        "gender": "女",
+        "role": "SELLER"
+    },
+    {
+        "idcard": 12341,
+        "address": "湖南",
+        "username": "李泽宇",
+        "password": "56761",
+        "email": "207812314@qq.com",
+        "phonenumber": "178827548",
+        "gender": "女",
+        "role": "BUYER"
+    }
+
+    //    @Select("SELECT orderid, idcard, ticketid, orderdate, orderprice, paymentstatus, view, eventid FROM orders WHERE orderid = #{orderId}")
+    //    orders selectById(@Param("orderId") Integer orderId);
+
+
+ @Select("SELECT ticketid, eventid, categoryid, seatNumber, status FROM ticket WHERE ticketid=#{ticketId}")
+    ticket selectTicketById(@Param("ticketId") String ticketId);
