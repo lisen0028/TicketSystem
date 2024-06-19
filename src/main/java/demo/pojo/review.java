@@ -32,5 +32,5 @@ public class review {
     private String comment;
 
     @Column(name = "reviewdate")
-    private Data reviewdate;
+    private java.sql.Date reviewdate;
 }

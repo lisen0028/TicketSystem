@@ -3,6 +3,7 @@ package demo.pojo;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,8 +29,9 @@ public class orders {
     @Column(name = "ticketid")
     private String ticketid;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     @Column(name = "orderdate")
-    private Data orderdate;
+    private java.sql.Date orderdate;
 
     @Column(name = "orderprice")
     private float orderprice;
@@ -43,7 +45,7 @@ public class orders {
     @Column(name = "eventid")
     private int eventid;
 
-    public orders(int idcard, String ticketid, Data orderdate, float orderprice, Paymentstatus paymentstatus, byte view, int eventid) {
+    public orders(int idcard, String ticketid, java.sql.Date orderdate, float orderprice, Paymentstatus paymentstatus, byte view, int eventid) {
         this.idcard = idcard;
         this.ticketid = ticketid;
         this.orderdate = orderdate;

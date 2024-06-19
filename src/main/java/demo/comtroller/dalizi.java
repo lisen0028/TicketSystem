@@ -104,7 +104,8 @@ public boolean delOrderView(@PathVariable("OrderId") Integer OrderId) {
         }
     }
 
-    @PutMapping("/delOrderView/{OrderId}")
+    //修改订单为不可视,前后端交互版
+    @PutMapping("/OrderIsUnView/{OrderId}")
     public boolean OrderIsUnView(@PathVariable("OrderId") Integer OrderId) {
         if (updateOrderStatus(OrderId)&&updateTicketStatus(OrderId)){
             return true;
@@ -153,14 +154,14 @@ public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId
 
 //根据id修改订单支付状态
     @PutMapping("/updateOrder/{OrderId}")
-    public orders updateOrder(@PathVariable("OrderId") String OrderId, @RequestBody orders orders) {
+    public float updateOrder(@PathVariable("OrderId") String OrderId) {
         orders existingOrders = orderMapper.selectById(OrderId);
         if (existingOrders != null) {
-            orders.setOrderid(OrderId);
-            orderMapper.updateById(orders);
-            return orders;
+            existingOrders.setPaymentstatus(Paymentstatus.COMPLETED);
+            orderMapper.updateById(existingOrders);
+            return existingOrders.getOrderprice();
         } else {
-            return null;
+            return 0;
         }
     }
 
@@ -333,6 +334,12 @@ public List<user> findByName(@PathVariable String name) {
         return reviews;
     }
 
+//添加评价
+    @PostMapping("/addReview")
+    public int addReview(@RequestBody review review) {
+        return reviewMapper.insert(review);
+    }
+
 
 
 //按条件查询活动
@@ -346,7 +353,7 @@ public List<user> findByName(@PathVariable String name) {
     public String addOrder(
             @PathVariable("eventid") int eventid,
             @PathVariable("userid") int userid,
-            @PathVariable("date") Data date) {
+            @PathVariable("date") java.sql.Date date) {
         //添加订单
         //找一个为可售状态的票
         ticket ticket=ticketsMapper.selectById(ticketsMapper.getNullTickets());
@@ -372,6 +379,8 @@ public List<user> findByName(@PathVariable String name) {
         return orders.getOrderid();
     }
 
+
+//添加活动
 
 
 
