@@ -173,9 +173,10 @@ public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId
     }
 
     //根据活动名字模糊查询个人订单
-    @GetMapping("/getOrdersByName/{name}")
-    public List<orders> getOrdersByName(@PathVariable("name") String name) {
-        return orderMapper.selectOrdersByName( name);
+    @GetMapping("/getOrdersByName/{name}/{userid}")
+    public List<orders> getOrdersByName(@PathVariable("name") String name,
+                                        @PathVariable("userid") String userid) {
+        return orderMapper.selectOrdersByName(name,userid);
     }
 
     //查询个人历史订单

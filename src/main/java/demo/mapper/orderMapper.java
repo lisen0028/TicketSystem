@@ -20,6 +20,6 @@ public interface orderMapper extends BaseMapper<orders> {
     @Select("SELECT o.orderid, o.idcard, o.ticketid, o.orderdate, o.orderprice, o.paymentstatus, o.view, o.eventid " +
             "FROM orders o " +
             "JOIN event e ON o.eventid = e.eventid " +
-            "WHERE e.eventname LIKE CONCAT('%', #{eventname}, '%')")
-    List<orders> selectOrdersByName(@Param("eventname") String eventname);
+            "WHERE e.eventname LIKE CONCAT('%', #{eventname}, '%') and  o.idcard = #{userId}")
+    List<orders> selectOrdersByName(@Param("eventname") String eventname,@Param("userId") String userId);
 }
