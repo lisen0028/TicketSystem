@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.sql.Date;
+
 /**
  * @Author lsw
  * @Date 2024/3/25 20:52
@@ -25,7 +27,7 @@ public class event {
     private String eventname;
 
     @Column(name = "eventdate")
-    private Data eventdate;
+    private Date eventdate;
 
     @Column(name = "venue")
     private String venue;

@@ -4,14 +4,22 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import demo.DTO.OrderEventDTO;
+import demo.DTO.TicketEventDTO;
 import demo.mapper.*;
 
 
 import demo.pojo.*;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.data.web.SpringDataWebProperties;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.Date;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,49 +45,96 @@ public class dalizi {
     ticketcategoryMapper ticketcategoryMapper;
     @Autowired
     reviewMapper  reviewMapper;
-
-//添加用户
-    @PostMapping("/addUser")
-    public int addUser(@RequestBody user user) {
-        return userMapper.insert(user);
-    }
-
-    @GetMapping("/allUser")
-    public List<user> getAll() {
-        return userMapper.selectList(null);
-    }
-
+//用户管理：
 //修改个人信息
-    @PutMapping("/updateUser/{id}")
-    public user updateUser(@PathVariable("id") Integer id, @RequestBody user user) {
-        user existingUser = userMapper.selectById(id);
-        if (existingUser != null) {
-            user.setIdcard(id);
-            userMapper.updateById(user);
-            return user;
-        } else {
-            return null;
-        }
+@PutMapping("/updateUser/{id}")
+public user updateUser(@PathVariable("id") Integer id, @RequestBody user user) {
+    user existingUser = userMapper.selectById(id);
+    if (existingUser != null) {
+        user.setIdcard(id);
+        userMapper.updateById(user);
+        return user;
+    } else {
+        return null;
     }
-
-//查询个人信息
+}
+    //查询个人信息
     @GetMapping("/selUser/{id}")
     public user selUser(@PathVariable("id") Integer id) {
         return userMapper.selectById(id);
     }
 
+    //注册添加用户
+    @PostMapping("/addUser")
+    public int addUser(@RequestBody user user) {
+        return userMapper.insert(user);
+    }
 
-//修改订单为不可视，修改票务为可售
-@PutMapping("/delOrderView/{OrderId}")
-public boolean delOrderView(@PathVariable("OrderId") Integer OrderId) {
+    //管理员分页查询所有用户信息
+    @GetMapping("/getUsersPage/{pageNum}/{pageSize}")
+    public List<user> getUsersPage(@PathVariable("pageNum") int pageNum,
+                                   @PathVariable("pageSize") int pageSize) {
+        Page<user> page = new Page<>(pageNum, pageSize);
+        page.addOrder(OrderItem.desc("idcard")); // 降序排序
+
+        IPage<user> users = userMapper.selectPage(page, null);
+        return users.getRecords();
+    }
+
+    //管理员根据名字模糊查询用户信息
+    @GetMapping("/userByName/{name}")
+    public List<user> findByName(@PathVariable String name) {
+        QueryWrapper<user> queryWrapper = new QueryWrapper<>();
+        queryWrapper.like("username", name);
+        return userMapper.selectList(queryWrapper);
+    }
+
+
+
+//订单管理：
+
+
+    //生成订单
+    @PostMapping("/addOrder/{categoryid}/count")
+    public String addOrder(@PathVariable("categoryid") Integer categoryid, @RequestParam("count") int[] count, @RequestBody orders orders) {
+         int flag=0;
+        for (int i = 0; i < count.length; i++) {
+
+            //票务档次余票减一
+            ticketcategory ticketcategory= ticketcategoryMapper.selectById(categoryid);
+            if (ticketcategory == null || ticketcategory.getRemainquantity() <= 0) {
+                throw new IllegalArgumentException("票务档次不存在或余票不足");
+            }
+            ticketcategory.setRemainquantity(ticketcategory.getRemainquantity()-1);
+            ticketcategoryMapper.updateById(ticketcategory);
+
+            //找到可出售的票
+            String ticketid = ticketsMapper.selectNullTickets(categoryid);
+
+            //将票的状态改成“已售出”
+            int updatedRows = ticketsMapper.updateTicketStatusToSold(ticketid);
+            if (updatedRows == 0) {
+                throw new RuntimeException("更新票状态失败");
+            }
+            //为每个订单插入票
+            orders.setTicketid(ticketid);
+            //在表中插入订单
+            orderMapper.insert(orders);
+            flag++;
+        }
+        return "成功订购"+flag+"张票";
+    }
+
+    //修改订单为不可视，修改票务为可售
+    @PutMapping("/delOrderView/{OrderId}")
+    public boolean delOrderView(@PathVariable("OrderId") Integer OrderId) {
         if (updateOrderStatus(OrderId)&&updateTicketStatus(OrderId)){
             return true;
         }
         else return false;
-}
+    }
 
-//修改票务状态为可售
-
+    //修改订单票务状态为可售
     public Boolean updateTicketStatus(Integer orderId) {
         ticket ticket = ticketsMapper.selectById(orderMapper.selectById(orderId).getTicketid());
         if (ticket != null) {
@@ -90,6 +145,7 @@ public boolean delOrderView(@PathVariable("OrderId") Integer OrderId) {
             return false;
         }
     }
+
 
 //根据订单id，修改订单状态为不可视
 
@@ -124,35 +180,7 @@ public boolean delOrderView(@PathVariable("OrderId") Integer OrderId) {
         return "Deleted " + orderIds.size() + " users successfully!";
     }
 
-
-//根据票务id查询票务
-    @GetMapping("/tickets/{Id}")
-    public ticket getTickets(@PathVariable("Id") Integer Id) {
-        ticket ticket = ticketsMapper.selectById(Id);
-        return ticket;
-    }
-
-
-//分页展示个人所有订单
-@GetMapping("/getOrdersPage/{userId}/{pageNum}/{pageSize}")
-public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId,
-                                          @PathVariable("pageNum") int pageNum,
-                                          @PathVariable("pageSize") int pageSize) {
-    Page<orders> page = new Page<>(pageNum, pageSize);
-    page.addOrder(OrderItem.desc("orderdate")); // 降序排序
-
-    // 构建查询条件，筛选指定用户ID且view为1的订单，分页条件
-    QueryWrapper<orders> queryWrapper = new QueryWrapper<>();
-    queryWrapper.eq("idcard", userId); // 等价于 WHERE idcard = {userId}
-    queryWrapper.eq("view", 1); // 可选：如果需要只展示view为1的订单
-
-    // 执行带有条件的分页查询
-    IPage<orders> orders = orderMapper.selectPage(page, queryWrapper);
-
-    return orders.getRecords();
-}
-
-//根据id修改订单支付状态
+    //根据id修改订单支付状态为已支付
     @PutMapping("/updatePaymentStatus/{OrderId}")
     public float updatePaymentStatus(@PathVariable("OrderId") String OrderId) {
         orders existingOrders = orderMapper.selectById(OrderId);
@@ -165,79 +193,106 @@ public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId
         }
     }
 
-    //根据订单id查询订单
-    @GetMapping("/getOrder/{OrderId}")
-    public orders getOrder(@PathVariable("OrderId") String OrderId) {
-        orders orders = orderMapper.selectById(OrderId);
-        return orders;
+    //退票
+    //根据订单id修改相应票务状态为可售
+    @PutMapping("/refundTicket/{OrderId}")
+    public Boolean refundTicketById(@PathVariable("OrderId") Integer orderId) {
+        ticket ticket = ticketsMapper.selectById(orderMapper.selectById(orderId).getTicketid());
+        if (ticket != null) {
+            ticket.setStatus(Status.AVAILABLE);
+            ticketsMapper.updateById(ticket);
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    //根据活动名字模糊查询个人订单
+    //退票
+    //查询OrderEventDTO详细信息
+    @GetMapping("/getOrderEventDTO/{OrderId}")
+    public OrderEventDTO getOrderEventDTO(@PathVariable("OrderId") Integer OrderId) {
+        return  orderMapper.getOrdersWithEventById(OrderId);
+    }
+
+    //取消订单
+    @PutMapping("/cancelOrder/{orderId}")
+    public Boolean cancelOrder(@PathVariable("orderId") Integer orderId) {
+        orders orders = orderMapper.selectById(orderId);
+        if (orders != null) {
+            orders.setPaymentstatus(Paymentstatus.FAILED);
+            orderMapper.updateById(orders);
+            //票改成可售
+            updateTicketStatus(orderId);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    //据活动名字模糊查询个人订单
     @GetMapping("/getOrdersByName/{name}/{userid}")
     public List<orders> getOrdersByName(@PathVariable("name") String name,
                                         @PathVariable("userid") String userid) {
         return orderMapper.selectOrdersByName(name,userid);
     }
 
-    //查询个人历史订单
-    @GetMapping("/getOrdersByUserId/{UserId}")
-    public List<orders> getOrdersByUserId(@PathVariable("UserId") Integer UserId) {
-        List<orders> orders = orderMapper.selectOrdersByUserId(UserId);
-        return orders;
+    //分页显示个人所有订单
+    @GetMapping("/getOrdersPage/{userId}/{pageNum}/{pageSize}")
+    public List<OrderEventDTO> getOrdersPageByUserIdGPT(@PathVariable("userId") Integer userId,
+                                                        @PathVariable("pageNum") int pageNum,
+                                                        @PathVariable("pageSize") int pageSize) {
+        Page<OrderEventDTO> page = new Page<>(pageNum, pageSize);
+        return orderMapper.getOrdersPage(page, userId);
     }
 
-
-//查询用户评价信息
-    @GetMapping("/GetViewByUser/{userId}")
-    public List<review> GetViewByUser(@PathVariable("userId") Integer userId) {
-        List<review> reviews= reviewMapper.selectByUserId(userId);
-        return reviews;
-    }
+    //活动管理：
 
 
-    //删除评论
-    @DeleteMapping("/delView/{reviewId}")
-    public boolean delView(@PathVariable("reviewId") Integer reviewId) {
-        review review= reviewMapper.selectById(reviewId);
-        if (review==null){
-            return false;
-        }else {
-            reviewMapper.deleteById(reviewId);
-            return true;
-        }
-    }
+//根据活动名称模糊查询卖家创建的活动返回活动和票务表中价格
+@GetMapping("/getEventsByName/{name}/{userId}")
+public List<event> UsergetEventsByName(@PathVariable("name") String name,@PathVariable("userId") Integer userId) {
+    QueryWrapper<event> queryWrapper = new QueryWrapper<>();
+    queryWrapper.like("eventname", name);
+    queryWrapper.eq("createdby", userId); // 等价于 WHERE idcard = {userId}
+    return eventsMapper.selectList(queryWrapper);
+}
 
-    //批量删除评论
-    @DeleteMapping("/delViewsBatch")
-    public String delViewsBatch(@RequestBody List<Integer> reviewIds) {
-        System.out.println("进入删除方法");
+//管理员分页查询所有活动信息和票务表信息
+    @GetMapping("/getEventsWithTickets/{pageNum}/{pageSize}")
+public IPage<TicketEventDTO> getEventsWithTickets(@PathVariable("pageNum")int pageNum, @PathVariable("pageSize") int pageSize) {
+    Page<TicketEventDTO> page = new Page<>(pageNum, pageSize);
+    return eventsMapper.selectEventsWithTickets(page);
+}
 
-        for (Integer accout : reviewIds) {
-            delView(accout);
-        }
-        return "Deleted " + reviewIds.size() + " users successfully!";
-    }
+// 分页查询卖家创建的活动信息和票务表信息
+@GetMapping("/getEventsWithTickets/{pageNum}/{pageSize}/{userid}")
+public IPage<TicketEventDTO> UsergetEventsWithTickets(@PathVariable("pageNum")int pageNum
+        , @PathVariable("pageSize") int pageSize
+        ,@PathVariable("userid") int userid) {
+    Page<TicketEventDTO> page = new Page<>(pageNum, pageSize);
+    return eventsMapper.UselectEventsWithTickets(page,userid);
+}
 
+//按条件查询活动
+@GetMapping("/search")
+public ResponseEntity<?> searchEvents(
+        @RequestParam(required = false) String eventName,
+        @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date eventDate,
+        @RequestParam(required = false) String category) {
 
-//查询卖家创建的活动返回活动和票务表中价格！！！！！！！！！！！！！！！！！！！！
-
-
-
-
+    List<event> events = eventsMapper.searchEvents(eventName, eventDate, category);
+    return ResponseEntity.ok(events);
+}
 
     //根据活动名称模糊查询卖家创建的活动
-    @GetMapping("/getEventsByName/{name}/{userId}")
-    public List<event> UsergetEventsByName(@PathVariable("name") String name,@PathVariable("userId") Integer userId) {
-        QueryWrapper<event> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like("eventname", name);
-        queryWrapper.eq("createdby", userId); // 等价于 WHERE idcard = {userId}
-        return eventsMapper.selectList(queryWrapper);
+    @GetMapping("/getEventsWithTickets/{eventname}/{userid}")
+    public List<TicketEventDTO> selectEventsTicketByName(@PathVariable("eventname")String eventname,
+            @PathVariable("userid") String userid) {
+        return eventsMapper.selectEventsByName(eventname,userid);
     }
 
-
-
-    //修改活动
-    @PutMapping("/updateEvent/{eventId}")
+    //修改活动：时间，地点，名字，描述
+    @PutMapping("/updateEvent/{eventId}/{event}")
     public event updateEvent(@PathVariable("eventId") Integer eventId, @RequestBody event event) {
         event existingEvent = eventsMapper.selectById(eventId);
         if (existingEvent != null) {
@@ -249,62 +304,7 @@ public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId
         }
     }
 
-
-//管理员：
-
-//分页查询所有用户信息
-    @GetMapping("/getUsersPage/{pageNum}/{pageSize}")
-    public List<user> getUsersPage(@PathVariable("pageNum") int pageNum,
-                                   @PathVariable("pageSize") int pageSize) {
-        Page<user> page = new Page<>(pageNum, pageSize);
-        page.addOrder(OrderItem.desc("idcard")); // 降序排序
-
-
-        // 执行没条件的分页查询
-        IPage<user> users = userMapper.selectPage(page, null);
-        return users.getRecords();
-    }
-
-
-//模糊查询用户信息
-@GetMapping("/userByName/{name}")
-public List<user> findByName(@PathVariable String name) {
-    QueryWrapper<user> queryWrapper = new QueryWrapper<>();
-    queryWrapper.like("username", name);
-    return userMapper.selectList(queryWrapper);
-}
-
-//查询所有活动信息，返回活动表
-    @GetMapping("/getEvents")
-    public List<event> getEvents() {
-        return eventsMapper.selectList(null);
-    }
-
-
-
-//
-//    //添加活动，票务表要多相应数量的票
-//    @PostMapping("/addEvent")
-//    public String  addEvent(@RequestBody event event) {
-//
-//
-//        return "";
-//    }
-////添加票务档次
-//@PostMapping("/addTicketCategory/{eventid}/{ticketCate}")
-//public boolean  addTicketCategory(@RequestBody ticketcategory ticketcategory,
-//                                    @PathVariable("eventid") Integer eventid
-//                                ){
-//
-//
-//    return ;
-//}
-
-
-
-
-
-//根据id删除活动
+    //根据id删除活动
     @DeleteMapping("/delEvent/{eventId}")
     public boolean delEvent(@PathVariable("eventId") Integer eventId) {
         event event= eventsMapper.selectById(eventId);
@@ -334,141 +334,19 @@ public List<user> findByName(@PathVariable String name) {
     }
 
 
-//查询所有评价
-    @GetMapping("/getAllReviews")
-    public List<review> getAllReviews() {
-        List<review> reviews = reviewMapper.selectList(null);
-        return reviews;
-    }
 
-//添加评价
+//评价管理：
+//查询所有评价
+@GetMapping("/getAllReviews")
+public List<review> getAllReviews() {
+    List<review> reviews = reviewMapper.selectList(null);
+    return reviews;
+}
+
+    //添加评价
     @PostMapping("/addReview")
     public int addReview(@RequestBody review review) {
         return reviewMapper.insert(review);
     }
-
-
-
-//按条件查询活动
-
-
-
-
-
-    //添加订单
-    @PostMapping("/addOrder/{eventid}/{userid}/{date}")
-    public String addOrder(
-            @PathVariable("eventid") int eventid,
-            @PathVariable("userid") int userid,
-            @PathVariable("date") java.sql.Date date) {
-        //添加订单
-        //找一个为可售状态的票
-        ticket ticket=ticketsMapper.selectById(ticketsMapper.getNullTickets());
-
-        //当票已经售罄，ticket对象为空抛出错误
-
-        //将该票状态该为不可出售
-        ticket.setStatus(Status.SOLD);
-        //更新票
-        ticketsMapper.updateById(ticket);
-
-        //查找该票的票务档次，余票减一,得到价格
-        ticketcategory ticketcategory=ticketcategoryMapper.selectById(ticket.getCategoryid());
-        ticketcategory.setRemainquantity(ticketcategory.getRemainquantity()-1);
-        ticketcategoryMapper.updateById(ticketcategory);
-        float price=ticketcategory.getPrice();
-
-        //创建一个订单对象
-        orders orders =new orders(userid,ticket.getTicketid(),date,price,Paymentstatus.PENDING,(byte) 1,eventid);
-
-        //把订单插入数据库
-        orderMapper.insert(orders) ;
-        return orders.getOrderid();
-    }
-
-
-//添加活动
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    @GetMapping("/xiangqing")
-    public String XiangQing() {
-
-        return "详细信息";
-    }
-
-    @PostMapping("/add")
-    public String add(String something) {
-
-        return something + "添加座位";
-    }
-
-
-
-    @GetMapping("/allEvents")
-    public List<event> getAllEvents() {
-        return eventsMapper.selectList(null);
-    }
-
-    @GetMapping("/allOrders")
-    public List<orders> getAllOrders() {
-        return orderMapper.selectList(null);
-    }
-
-    @PostMapping("/addEvents")
-    public int addEvents(@RequestBody event event) {
-        return eventsMapper.insert(event);
-    }
-
-
-
-
-    @DeleteMapping("/delUser/{id}")
-    public int delUser(@PathVariable("id") Integer id) {
-        return userMapper.deleteById(id);
-    }
-
-    @GetMapping("/user/findByPage")
-    public IPage getUserList(@RequestParam("pageNum") Integer pageNum,
-                             @RequestParam("pageSize") Integer pageSize) {
-        Page<user> page = new Page<>(pageNum, pageSize);
-        QueryWrapper<user> queryWrapper = new QueryWrapper<>();
-        queryWrapper.orderByDesc("id"); // 根据id字段降序排序
-        page.addOrder(OrderItem.desc("id")); // 添加降序排序条件
-        IPage ipage = userMapper.selectPage(page, null);
-        return ipage;
-    }
-
-    @DeleteMapping("/delUsersBatch")
-    public String deleteUsersBatch(@RequestBody List<Integer> accouts) {
-        System.out.println("进入删除方法");
-        for (Integer accout : accouts) {
-            userMapper.deleteById(accout);
-        }
-        return "Deleted " + accouts.size() + " users successfully!";
-    }
-
-
 
 }

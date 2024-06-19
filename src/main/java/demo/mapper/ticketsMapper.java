@@ -5,6 +5,7 @@ import demo.pojo.ticket;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -17,5 +18,14 @@ import java.util.List;
 public interface ticketsMapper extends BaseMapper<ticket> {
     List<ticket> selectTicketsByEventId(Integer eventId);
 
-    String  getNullTickets();
+    @Update("UPDATE ticket " +
+            "SET status = 'SOLD' " +
+            "WHERE ticketid = #{ticketid}")
+    int updateTicketStatusToSold(@Param("ticketid") String ticketid);
+    @Select("SELECT ticketid " +
+            "FROM ticket " +
+            "WHERE status = 'AVAILABLE'  and categoryid = #{categoryid} "+
+            "LIMIT 1")
+
+    String selectNullTickets(Integer categoryid);
 }
