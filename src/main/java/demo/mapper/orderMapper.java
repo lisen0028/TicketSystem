@@ -15,7 +15,11 @@ import java.util.List;
  */
 @Mapper
 public interface orderMapper extends BaseMapper<orders> {
-
     @Select("SELECT orderid, idcard, ticketid, orderdate, orderprice, paymentstatus, view, eventid FROM orders WHERE userid = #{userId}")
     List<orders> selectOrdersByUserId(@Param("userId") Integer userId);
+    @Select("SELECT o.orderid, o.idcard, o.ticketid, o.orderdate, o.orderprice, o.paymentstatus, o.view, o.eventid " +
+            "FROM orders o " +
+            "JOIN event e ON o.eventid = e.eventid " +
+            "WHERE e.eventname LIKE CONCAT('%', #{eventname}, '%')")
+    List<orders> selectOrdersByName(@Param("eventname") String eventname);
 }

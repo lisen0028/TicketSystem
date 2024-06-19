@@ -153,8 +153,8 @@ public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId
 }
 
 //根据id修改订单支付状态
-    @PutMapping("/updateOrder/{OrderId}")
-    public float updateOrder(@PathVariable("OrderId") String OrderId) {
+    @PutMapping("/updatePaymentStatus/{OrderId}")
+    public float updatePaymentStatus(@PathVariable("OrderId") String OrderId) {
         orders existingOrders = orderMapper.selectById(OrderId);
         if (existingOrders != null) {
             existingOrders.setPaymentstatus(Paymentstatus.COMPLETED);
@@ -170,6 +170,12 @@ public List<orders> getOrdersPageByUserId(@PathVariable("userId") Integer userId
     public orders getOrder(@PathVariable("OrderId") String OrderId) {
         orders orders = orderMapper.selectById(OrderId);
         return orders;
+    }
+
+    //根据活动名字模糊查询个人订单
+    @GetMapping("/getOrdersByName/{name}")
+    public List<orders> getOrdersByName(@PathVariable("name") String name) {
+        return orderMapper.selectOrdersByName( name);
     }
 
     //查询个人历史订单
