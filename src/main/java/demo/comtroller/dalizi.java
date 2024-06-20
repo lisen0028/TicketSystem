@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @Author lisiwen
@@ -336,12 +337,22 @@ public ResponseEntity<?> searchEvents(
 
 
 //评价管理：
-//查询所有评价
-@GetMapping("/getAllReviews")
-public List<review> getAllReviews() {
-    List<review> reviews = reviewMapper.selectList(null);
-    return reviews;
-}
+
+    //分页查询用户个人评价
+    @GetMapping("/SelectReviewsByUserId/{pageNum}/{pageSize}/{userid}")
+    public IPage<review> SelectReviewsByUserId(@PathVariable("pageNum")int pageNum
+            , @PathVariable("pageSize") int pageSize
+            ,@PathVariable("userid") int userid) {
+        Page<review> page = new Page<>(pageNum, pageSize);
+        return reviewMapper.SelectReviewsByUserId(page,userid);
+    }
+    //分页查询所有评价
+    @GetMapping("/getReviewsPage/{pageNum}/{pageSize}")
+    public IPage<review> getReviewsPage(@PathVariable("pageNum")int pageNum, @PathVariable("pageSize") int pageSize) {
+        Page<review> page = new Page<>(pageNum, pageSize);
+        return reviewMapper.selectPage(page, null);
+    }
+
 
     //添加评价
     @PostMapping("/addReview")
@@ -349,4 +360,15 @@ public List<review> getAllReviews() {
         return reviewMapper.insert(review);
     }
 
+    //评价统计
+    @GetMapping("/chartReview")
+    public List<Map<String, Object>> chartReview() {
+        return reviewMapper.chartReview();
+    }
+
 }
+
+
+
+
+

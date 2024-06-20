@@ -31,11 +31,11 @@ public interface orderMapper extends BaseMapper<orders> {
             "JOIN event e ON o.eventid = e.eventid " +
             "WHERE o.idcard = #{userId} AND o.view = 1")
     List<OrderEventDTO> getOrdersPage(Page<?> page, @Param("userId") Integer userId);
+
     @Select("SELECT o.orderid, o.idcard, o.ticketid, o.orderdate, o.orderprice, o.paymentstatus, o.view, " +
             "e.eventid, e.eventname, e.eventdate, e.venue, e.description, e.imgaddress, e.classify, e.createdby " +
             "FROM orders o " +
             "JOIN event e ON o.eventid = e.eventid " +
             "WHERE o.orderid = #{orderId} ")
     OrderEventDTO getOrdersWithEventById(@Param("orderId") Integer orderId);
-
 }
